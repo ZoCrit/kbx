@@ -62,7 +62,6 @@ If you prefer to set up the key remapping manually instead of using the script:
    ```
 
 ### Plist Configurations
-### Plist Configurations
 
 #### Classic Configuration (F5 & F6)
 ```xml
@@ -148,3 +147,15 @@ hidutil property --set '{"UserKeyMapping":[
   }
 ]}'
 ```
+
+## Screenshots
+
+*Top to bottom: Main menu, Configuration selection, Delete option*
+
+<div align="center">
+  <img src="https://github.com/ZoCrit/kbx/blob/main/screenshots/SCR_menu.png?raw=true" width="500" alt="Main Menu">
+  
+  <img src="https://github.com/ZoCrit/kbx/blob/main/screenshots/SCR_selected.png?raw=true" width="500" alt="Option Selected">
+  
+  <img src="https://github.com/ZoCrit/kbx/blob/main/screenshots/SCR_delete.png?raw=true" width="500" alt="Delete Configuration">
+</div>

@@ -1,0 +1,198 @@
+#!/bin/bash
+
+# Color codes
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
+NC='\033[0m' # No Color
+
+show_header() {
+    echo -e "${CYAN}========================================"
+    echo -e "  Keyboard Brightness X"
+    echo -e "  For Apple Silicon MacBooks"
+    echo -e "========================================${NC}"
+    echo ""
+}
+
+# Function to display options
+show_menu() {
+    echo -e "${YELLOW}Choose your keyboard brightness mapping:${NC}"
+    echo ""
+    echo -e "  ${BLUE}1)${NC} Classic - Maps to F5 and F6 (overwrites Dictation and Focus Mode)"
+    echo -e "  ${BLUE}2)${NC} Mid     - Maps to F4 and F5 (overwrites Spotlight and Dictation)"
+    echo -e "  ${BLUE}3)${NC} Left    - Maps to F3 and F4 (overwrites Launchpad and Spotlight)"
+    echo ""
+    echo -e "  ${RED}0)${NC} Exit"
+    echo ""
+}
+
+create_plist() {
+    local config_name="$1"
+    local key_mapping="$2"
+    
+    sudo mkdir -p /Library/LaunchAgents
+
+    cat <<EOF | sudo tee /Library/LaunchAgents/com.local.KeyRemapping.plist > /dev/null
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.KeyRemapping</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/hidutil</string>
+        <string>property</string>
+        <string>--set</string>
+        <string>$key_mapping</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+EOF
+
+    echo -e "${GREEN}✓ Created plist configuration file${NC}"
+}
+
+# Function to apply configuration
+apply_config() {
+    local config_name="$1"
+    local key_mapping="$2"
+    local compact_mapping="$3"
+
+    echo -e "${YELLOW}Applying $config_name configuration...${NC}"
+    
+    create_plist "$config_name" "$key_mapping"
+    
+    sudo launchctl load /Library/LaunchAgents/com.local.KeyRemapping.plist 2>/dev/null
+    
+    # Immediately activate the mapping
+    hidutil property --set "$compact_mapping"
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ $config_name configuration applied successfully!"
+        echo -e "  Keyboard brightness is now mapped to the selected function keys.${NC}"
+        echo -e "${YELLOW}  This configuration will persist after reboots.${NC}"
+    else
+        echo -e "${RED}✗ Failed to apply configuration${NC}"
+        return 1
+    fi
+}
+
+remove_config() {
+    echo -e "${YELLOW}Removing existing configuration...${NC}"
+    
+    sudo launchctl unload /Library/LaunchAgents/com.local.KeyRemapping.plist 2>/dev/null
+    
+    sudo rm -f /Library/LaunchAgents/com.local.KeyRemapping.plist
+    
+    # Immediately clear the mapping
+    hidutil property --set '{"UserKeyMapping":[]}'
+    
+    echo -e "${GREEN}✓ Configuration removed${NC}"
+}
+
+config_exists() {
+    if [ -f "/Library/LaunchAgents/com.local.KeyRemapping.plist" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+main() {
+    if [[ "$OSTYPE" != "darwin"* ]]; then
+        echo -e "${RED}Error: This script is designed for macOS only.${NC}"
+        exit 1
+    fi
+    
+    show_header
+    
+    if config_exists; then
+        echo -e "${YELLOW}⚠ Existing keyboard remapping configuration detected."
+        echo -e "  Do you want to remove it and create a new one? (y/N):${NC} "
+        read -r response
+        if [[ "$response" =~ ^[Yy]$ ]]; then
+            remove_config
+            echo ""
+        else
+            echo -e "${CYAN}Keeping existing configuration. Exiting...${NC}"
+            exit 0
+        fi
+    fi
+    
+    while true; do
+        show_menu
+        echo -ne "${PURPLE}Enter your choice (0-3):${NC} "
+        read -r choice
+        
+        case $choice in
+            1)
+                echo ""
+                echo -e "${CYAN}Selected: Classic (F5 and F6)${NC}"
+                apply_config "Classic" '{"UserKeyMapping":[
+                {
+                  "HIDKeyboardModifierMappingSrc": 0xC000000CF,
+                  "HIDKeyboardModifierMappingDst": 0xFF00000009
+                },
+                {
+                  "HIDKeyboardModifierMappingSrc": 0x10000009B,
+                  "HIDKeyboardModifierMappingDst": 0xFF00000008
+                }
+            ]}' '{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":0xC000000CF,"HIDKeyboardModifierMappingDst":0xFF00000009},{"HIDKeyboardModifierMappingSrc":0x10000009B,"HIDKeyboardModifierMappingDst":0xFF00000008}]}'
+                break
+                ;;
+            2)
+                echo ""
+                echo -e "${CYAN}Selected: Mid (F4 and F5)${NC}"
+                apply_config "Mid" '{"UserKeyMapping":[
+                {
+                  "HIDKeyboardModifierMappingSrc": 0xC00000221,
+                  "HIDKeyboardModifierMappingDst": 0xFF00000009
+                },
+                {
+                  "HIDKeyboardModifierMappingSrc": 0xC000000CF,
+                  "HIDKeyboardModifierMappingDst": 0xFF00000008
+                }
+            ]}' '{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":0xC00000221,"HIDKeyboardModifierMappingDst":0xFF00000009},{"HIDKeyboardModifierMappingSrc":0xC000000CF,"HIDKeyboardModifierMappingDst":0xFF00000008}]}'
+                break
+                ;;
+            3)
+                echo ""
+                echo -e "${CYAN}Selected: Left (F3 and F4)${NC}"
+                apply_config "Left" '{"UserKeyMapping":[
+                {
+                  "HIDKeyboardModifierMappingSrc": 0xFF0100000010,
+                  "HIDKeyboardModifierMappingDst": 0xFF00000009
+                },
+                {
+                  "HIDKeyboardModifierMappingSrc": 0xC00000221,
+                  "HIDKeyboardModifierMappingDst": 0xFF00000008
+                }
+            ]}' '{"UserKeyMapping":[{"HIDKeyboardModifierMappingSrc":0xFF0100000010,"HIDKeyboardModifierMappingDst":0xFF00000009},{"HIDKeyboardModifierMappingSrc":0xC00000221,"HIDKeyboardModifierMappingDst":0xFF00000008}]}'
+                break
+                ;;
+            0)
+                echo ""
+                echo -e "${CYAN}Goodbye!${NC}"
+                exit 0
+                ;;
+            *)
+                echo ""
+                echo -e "${RED}Invalid option. Please choose 1, 2, 3, or 0.${NC}"
+                echo ""
+                ;;
+        esac
+    done
+    
+    echo ""
+    echo -e "${GREEN}Configuration complete!${NC}"
+    echo -e "${YELLOW}Note: If you want to remove this configuration later, run this script again"
+    echo -e "      or manually delete /Library/LaunchAgents/com.local.KeyRemapping.plist${NC}"
+}
+
+main "$@"
